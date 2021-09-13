@@ -151,7 +151,7 @@ class Network:
             raise Exception('loss metric not defined')
         return pred_loss
 
-    def train(self, X_train, y_train, epochs = 100, alpha = 0.1):
+    def train(self, X_train, y_train, epochs = 100, alpha = 0.1, verbose = False):
         if self.dims[0] != X_train.shape[0]:
             raise Exception('Dimension of input data and input layer do not match')
 
@@ -184,7 +184,8 @@ class Network:
                 accuracies.append(accuracy)
                 losses.append(pred_loss)
 
-                print(f'Epoch {i+1}: calculated loss = {pred_loss} | calculated accuracy = {accuracy}')
+                if verbose:
+                    print(f'Epoch {i+1}: calculated loss = {pred_loss} | calculated accuracy = {accuracy}')
                 
                 self.activations = [X_train]
                 self.outputs = []
@@ -219,7 +220,8 @@ class Network:
                 accuracies.append(accuracy)
                 losses.append(pred_loss)
 
-                print(f'Epoch {i+1}: calculated loss = {pred_loss} | calculated accuracy = {accuracy}')
+                if verbose:
+                    print(f'Epoch {i+1}: calculated loss = {pred_loss} | calculated accuracy = {accuracy}')
 
         elif self.batch_type == 'mbgd':
             # MINI BATCH GRADIENT DESCENT
@@ -259,32 +261,33 @@ class Network:
                 accuracies.append(accuracy)
                 losses.append(pred_loss)
 
-                print(f'Epoch {i+1}: calculated loss = {pred_loss:.12f} | calculated accuracy = {accuracy:.5f}')
+                if verbose:
+                    print(f'Epoch {i+1}: calculated loss = {pred_loss:.12f} | calculated accuracy = {accuracy:.5f}')
 
         # plot the losses and accuracy development
-        xrange = np.arange(0, epochs)
-        plt.plot(xrange, losses, label="loss")
-        plt.title("loss over epochs")
-        plt.show()
-        plt.plot(xrange, accuracies, label="accuracy")
-        plt.title("accuracy over epochs")
-        plt.show()
+        if verbose:
+            xrange = np.arange(0, epochs)
+            plt.plot(xrange, losses, label="loss")
+            plt.title("loss over epochs")
+            plt.show()
+            plt.plot(xrange, accuracies, label="accuracy")
+            plt.title("accuracy over epochs")
+            plt.show()
         
     def predict(self, X_test, y_test):
         y_pred = self.forward_pass(X_test)
-        y_pred = np.where(y_pred >= 0.5, 1, 0)
 
         # confusion matrix (gives an idea of the models classification 
         # power in terms of true positives and false negatives)
-        cf = np.array([
-            [np.sum((y_pred == y_test) & (y_test == 1)), np.sum((y_pred != y_test) & (y_test == 1))],
-            [np.sum((y_pred != y_test) & (y_test == 0)), np.sum((y_pred == y_test) & (y_test == 0))]
-        ])
+        # cf = np.array([
+        #     [np.sum((y_pred == y_test) & (y_test == 1)), np.sum((y_pred != y_test) & (y_test == 1))],
+        #     [np.sum((y_pred != y_test) & (y_test == 0)), np.sum((y_pred == y_test) & (y_test == 0))]
+        # ])
 
         #accuracy score
         accuracy = self.calculate_accuracy(y_pred, y_test)
 
-        return y_pred, cf, accuracy
+        return y_pred, accuracy
 
     def one_layer_forward_pass(self, W, b, a, activation):
         # simulates a forward propagation for the entire dataset through one layer

@@ -4,15 +4,15 @@
     currently does not support floats
 */
 
-__global__ void mulmat(int *a, int *b, int *c, int n, int BLOCK_SIZE){
-    extern __shared__ int s[];
-    int *s_a = s;
-    int *s_b = &s[BLOCK_SIZE * BLOCK_SIZE];
+__global__ void mulmat(float *a, float *b, float *c, int n, int BLOCK_SIZE){
+    extern __shared__ float s[];
+    float *s_a = s;
+    float *s_b = &s[BLOCK_SIZE * BLOCK_SIZE];
 
     int row = blockDim.x * blockIdx.x + threadIdx.x;
     int col = blockDim.y * blockIdx.y + threadIdx.y;
 
-    int tmp = 0;
+    float tmp = 0.0f;
     int i, j;
 
     for(i = 0; i < n; i += BLOCK_SIZE){
@@ -22,11 +22,12 @@ __global__ void mulmat(int *a, int *b, int *c, int n, int BLOCK_SIZE){
         __syncthreads();
 
         for(j = 0; j < BLOCK_SIZE; j++){
-            tmp += s_a[threadIdx.x * BLOCK_SIZE + j] * s_b[j * BLOCK_SIZE + threadIdx.y];
+            tmp = __fadd_rn(tmp, __fmul_rn(s_a[threadIdx.x * BLOCK_SIZE + j], s_b[j * BLOCK_SIZE + threadIdx.y]));
+            // tmp += s_a[threadIdx.x * BLOCK_SIZE + j] * s_b[j * BLOCK_SIZE + threadIdx.y];
         }
 
         __syncthreads();
     }
 
-    c[row * n + col] = tmp;
+    c[row * n + col] = (float)tmp;
 }
