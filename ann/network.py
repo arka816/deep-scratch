@@ -137,7 +137,6 @@ class Network:
             return (y_pred == y_train).all(axis = 0).mean()
         elif self.loss == 'cat-crossentropy':
             y_pred = (y_pred == np.max(y_pred, axis=0)).astype(int)
-            # print(y_pred[0:5])
             return (y_pred == y_train).all(axis = 0).mean()
 
     def calculate_loss(self, y_pred, y_train):
@@ -151,7 +150,7 @@ class Network:
             raise Exception('loss metric not defined')
         return pred_loss
 
-    def train(self, X_train, y_train, epochs = 100, alpha = 0.1, verbose = False):
+    def train(self, X_train, y_train, epochs = 100, alpha = 0.1, verbose = True):
         if self.dims[0] != X_train.shape[0]:
             raise Exception('Dimension of input data and input layer do not match')
 
@@ -286,7 +285,7 @@ class Network:
 
         #accuracy score
         accuracy = self.calculate_accuracy(y_pred, y_test)
-
+        y_pred = (y_pred == np.max(y_pred, axis=0)).astype(int)
         return y_pred, accuracy
 
     def one_layer_forward_pass(self, W, b, a, activation):
