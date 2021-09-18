@@ -55,9 +55,9 @@
   
     model.train(X_train, y_train, epochs=epochs, alpha=alpha, verbose=verbose)
     
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;epochs: (*int*) number of epochs to train the neural network. default: *100*
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;alpha: (*int*) learning rate for gradient descent. default: *0.1*
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;verbose: (*boolean*) default: *false*
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;epochs: (*int*) number of epochs to train the neural network. default: *100* <br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;alpha: (*int*) learning rate for gradient descent. default: *0.1* <br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;verbose: (*boolean*) default: *false* <br/>
   
     pred, accuracy = model.predict(X, y)
     
