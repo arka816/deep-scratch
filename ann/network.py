@@ -2,15 +2,19 @@ import numpy as np
 import activations
 import loss
 import layer
+from utils import clip
 import matplotlib.pyplot as plt
 import json
 
 class Network:
     def __init__(self, inputDim, intializationScheme = 'randn'):
-        # layers : hidden layers + output layer (we assume 1 output neuron in the output layer)
-        # dims   : number of neurons in each layer (input + hidden + output layer)
-        # activations : activation of outputs of each layer stored for backpropagation (a)
-        # outputs     : outputs of each layer stored for backpropagation (z)
+        '''
+        layers : hidden layers + output layer (we assume 1 output neuron in the output layer)
+        dims   : number of neurons in each layer (input + hidden + output layer)
+        activations : activation of outputs of each layer stored for backpropagation (a)
+        outputs     : outputs of each layer stored for backpropagation (z)
+        '''
+
         self.activations = []
         self.outputs = []
         self.layers = []
@@ -24,16 +28,20 @@ class Network:
         self.dims.append(dim)
         self.layers.append(layer.Layer(self.dims[-2], self.dims[-1], activation, self.intializationScheme))
 
-    def compile(self, loss="binary-crossentropy", optimizer='gd', batch_type='bgd', batch_size = 0):
-        # loss      : the loss metric used to backpropagate and adjust weights
-        # optimizer : the loss optimization method (gd, adaptive learning, ADAM, RADAM etc.)
-        # batch_type: the type of batching (bgd, sgd, mbgd etc)
-        # batch_size: the batch size if mini-batch gradient descent is used as optimizer
+    def compile(self, loss="binary-crossentropy", optimizer='gd', batch_type='bgd', batch_size = 0, regularization=None):
+        '''
+        loss      : the loss metric used to backpropagate and adjust weights
+        optimizer : the loss optimization method (gd, adaptive learning, ADAM, RADAM etc.)
+        batch_type: the type of batching (bgd, sgd, mbgd etc)
+        batch_size: the batch size if mini-batch gradient descent is used as optimizer
+        regularization: regularization method if any
+        '''
 
         self.loss = loss
         self.optimizer = optimizer
         self.batch_size = batch_size
         self.batch_type = batch_type
+        self.epoch = 0
 
         if self.optimizer == 'adagrad' or self.optimizer == 'rmsprop':
             # is momentum based optimizer
@@ -70,14 +78,18 @@ class Network:
             elif batch_size < 0:
                 raise Exception("invalid batch size for mini-batch gradient descent")
 
-    def optimize(self, grad_W, grad_b, alpha, epsilon=1e-4, beta=0.9, beta_1=0.9, beta_2=0.99):
-        # grad_W : list of gradients of loss w.r.t. W's of all layers
-        # grad_b : list of gradients of loss w.r.t. b's of all layers
-        # alpha  : learning rate of gradient descent
-        # epsilon: denominator weight for adagrad
-        # beta   : weight for rms propagation
-        # beta_1 : beta 1 for adam (weight for first moment)
-        # beta_2 : beta 2 for adam (weight for second moment)
+    def optimize(self, grad_W, grad_b, alpha, epsilon=1e-4, beta=0.9, beta_1=0.9, beta_2=0.99, lambda_=1, rho=0.01):
+        '''
+        grad_W : list of gradients of loss w.r.t. W's of all layers
+        grad_b : list of gradients of loss w.r.t. b's of all layers
+        alpha  : learning rate of gradient descent
+        epsilon: denominator weight for adagrad
+        beta   : weight for rms propagation
+        beta_1 : beta 1 for adam (weight for first moment)
+        beta_2 : beta 2 for adam (weight for second moment)
+        lambda_: regularization parameter for sophia
+        rho    : clipping parameter for gradient update for sophia (0.01 for sophia - H and 20 for sphia - G as suggested by original authors)
+        '''
 
         self.gen += 1
 
@@ -130,6 +142,19 @@ class Network:
                 self.layers[layer].W -= (alpha / (epsilon + np.sqrt(v_W))) * m_W
                 self.layers[layer].b -= (alpha / (epsilon + np.sqrt(v_b))) * m_b
 
+        elif self.optimizer == 'sophia':
+            'Second order clipped stochastic optimization'
+            for layer in range(len(self.layers)):
+                dW, db = grad_W[layer], grad_b[layer]
+
+                self.m_W[layer] = beta_1 * self.m_W[layer] + (1 - beta_1) * dW
+                self.m_b[layer] = beta_1 * self.m_b[layer] + (1 - beta_1) * db
+
+                self.layers[layer].W *= (1 - alpha * lambda_)
+                self.layers[layer].b *= (1 - alpha * lambda_)
+
+                self.layers[layer].W -= alpha * clip(self.m_W[layer] / np.maximum(self.layers[layer].h_W, epsilon), rho)
+                self.layers[layer].b -= alpha * clip(self.m_b[layer] / np.maximum(self.layers[layer].h_b, epsilon), rho)
 
     def calculate_accuracy(self, y_pred, y_train):
         if self.loss == 'binary-crossentropy':
@@ -165,6 +190,8 @@ class Network:
             self.activations.append(X_train)
 
             for i in range(epochs):
+                self.epoch = i + 1
+
                 # Forward Propagation
                 y_pred = self.forward_pass(X_train)
 
@@ -193,6 +220,8 @@ class Network:
             # STOCHASTIC GRADIENT DESCENT
 
             for i in range(epochs):
+                self.epoch = i + 1
+
                 y_pred = []
                 for j in range(X_train.shape[1]):
                     self.activations = [X_train.T[j:j+1].T]
@@ -228,6 +257,8 @@ class Network:
             sample_size = X_train.shape[1]
 
             for i in range(epochs):
+                self.epoch = i + 1
+
                 j = 0
                 y_pred = []
 
@@ -372,6 +403,11 @@ class Network:
         dw_curr = np.dot(a_prev, dz_curr.T) / m
         db_curr = np.sum(dz_curr, axis = 1, keepdims=True) / m
 
+        if self.optimizer == 'sophia':
+            # calculate diagonal hessians using hutchinson's trick (randomised algorithms)
+            u = np.random.randn(m, n)
+            
+
         return da_prev, dw_curr, db_curr
 
     def backward_pass(self, y_train):
@@ -403,10 +439,14 @@ class Network:
             z_curr = self.outputs[i]
             a_prev = self.activations[i]
 
-            da_prev, dw_curr, db_curr = self.one_layer_backward_pass(activation, z_curr, da_curr, W_curr, a_prev, y_pred, y_train)
+            da_prev, dw_curr, db_curr, h_W, h_b = self.one_layer_backward_pass(activation, z_curr, da_curr, W_curr, a_prev, y_pred, y_train)
     
             grad_W.insert(0, dw_curr)
             grad_b.insert(0, db_curr)
+
+            if self.optimizer == 'sophia':
+                self.layers[i].h_W = h_W
+                self.layers[i].h_b = h_b
 
         return grad_W, grad_b
 

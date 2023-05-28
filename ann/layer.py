@@ -9,6 +9,10 @@ class Layer:
     def initialize(self, m, n):
         # VARIOUS INITIALIZATION SCHEMES
 
+        # initialize hessian (mainly for sophia and future updates)
+        self.h_W = np.zeros((m, n))
+        self.h_b = np.zeros((n, 1))
+
         if self.initializationScheme == 'randn':
             # random normal with mean 0
             self.W = np.random.randn(m, n)

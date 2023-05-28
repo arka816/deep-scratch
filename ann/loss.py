@@ -28,4 +28,4 @@ def d_mse(y_pred, y_train):
 
 def d_cat_crossentropy(y_pred, y_train):
     # calculates the derivative of categorical crossentropy
-    return - np.divide(y_train, y_pred + 1e-10)
+    return -np.divide(y_train, y_pred + 1e-10)
